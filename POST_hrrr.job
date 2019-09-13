@@ -1,0 +1,101 @@
+#!/bin/csh
+
+#SBATCH --ntasks=100
+#SBATCH --mem=50g
+#SBATCH --time=01:00:00
+#SBATCH --partition=vjet
+#SBATCH --account=wrfruc
+#SBATCH --job-name=HRRR_POSTPROC
+#SBATCH --qos=windfall
+#SBATCH --output=postproc.log
+#SBATCH --error=postproc.err
+#SBATCH --mail-user=David.Melecio-vazquez@noaa.gov
+#SBATCH --mail-type=BEGIN,END
+
+##limit stacksize 512000
+limit stacksize unlimited
+setenv WRF_ARW_CORE 1
+
+# Load modules
+module purge
+module load slurm
+module load intel/15.0.3.187 impi
+module load szip hdf5 netcdf pnetcdf
+module load cdo
+module load ncl
+module load nco
+
+
+# Set up paths to unix commands
+set RM=/bin/rm
+set CP=/bin/cp
+set MV=/bin/mv
+set LN=/bin/ln
+set MKDIR=/bin/mkdir
+set CAT=/bin/cat
+set ECHO=/bin/echo
+set CUT=/bin/cut
+set WC=/usr/bin/wc
+set DATE=/bin/date
+set AWK="/bin/awk --posix"
+set SED=/bin/sed
+set TAIL=/usr/bin/tail
+set SRUN=srun
+set PYTHON3=/mnt/lfs3/projects/wrfruc/dmv.ccny/anaconda3/bin/python
+set RR=/mnt/lfs3/projects/wrfruc/dmv.ccny/R-3.6.0/bin/Rscript
+
+# Executable and path
+#set WRF_ROOT=$RUNDIR
+set WRF_ROOT=/mnt/lfs1/projects/rtwbl/kenyon/urban/2018070106/run
+set WRF=$WRF_ROOT/wrf.exe
+set POSTPROC=/mnt/lfs3/projects/wrfruc/dmv.ccny/POSTPROC
+
+## Set CWD to script location and execute redirecting stdout/stderr
+#cd $WRF_ROOT
+#$SRUN $WRF
+
+# Begin Post-processing
+# Link Post-processing scripts - CHANGE CD LOCATION
+cd $WRF_ROOT/dmv.postproc
+
+# Refresh Postprocessing scripts
+ln -sf $POSTPROC/mergeHRRR.py .
+ln -sf $POSTPROC/uvmetHRRR.ncl .
+ln -sf $POSTPROC/ncMergeHRRR.sh .
+ln -sf $POSTPROC/Load05-WRF.Rmd .
+ln -sf $POSTPROC/call_libraries.r .
+ln -sf $POSTPROC/ccnymwr_functions.R .
+ln -sf $POSTPROC/wrf_functions.R .
+ln -sf $POSTPROC/windlidar_nymeso_functions.R .
+
+# Change Load path in load script
+sed 's;CHANGE_PWD;'`pwd`';' Load05-WRF.Rmd > LoadWRFdata.Rmd
+
+# Change name netCDF files being used > chnage d03 to d0X of interest
+sed 's;.d03.nc;.d01.nc;' LoadWRFdata.Rmd > LoadWRFdata2.Rmd
+
+# 1. Post-processing: Get Variables of interest
+# Get met variables, surface winds , and vertical wind > ?.d0[1,2,3].nc
+$PYTHON3 mergeHRRR.py
+# Prep U and V winds > operate on wrfout > tmpuv*.nc and tmpMerged.nc
+bash ncMergeHRRR.sh
+# Calculate the u_v met winds > uvmet.d0[1,2,3].nc
+ncl uvmetHRRR.ncl
+# Delete temp files created by ncMergeHRRR.sh > cleanup 
+rm tmpuv*.nc
+rm Load05-WRF.Rmd
+rm LoadWRFdata.Rmd
+# Save wrf data as R objects
+$RR -e "rmarkdown::render('LoadWRFdata2.Rmd')"
+
+# 2. Build components of app
+mkdir app_parts
+# Move R objects of wrfdata
+mv *data app_parts/.
+# Copy app example
+cp $POSTPROC/app.R app_parts/app_HRRR20180701.R
+# Tar.gz the app parts together to prep for download
+tar -cvzhf app_parts.tar.gz app_parts
+
+# Sucessful exit
+exit 0

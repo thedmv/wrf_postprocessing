@@ -1,0 +1,118 @@
+---
+title: "Load 05 - WRF Outputs"
+author: "David Melecio-Vazquez"
+date: "February 11, 2019"
+output: html_document
+---
+
+# Introduction
+
+In this document we load the WRF outputs for the 2018 summer heat wave that occurred around July 2nd.
+
+```{r Markdown Options}
+knitr::opts_knit$set(root_dir = "CHANGE_PWD")
+```
+
+```{r Initialization}
+rm(list = ls())
+# Call libraries
+source("./call_libraries.r")
+
+# Call functions
+source("./ccnymwr_functions.R")
+source("./wrf_functions.R")
+source("./windlidar_nymeso_functions.R")
+```
+
+```{r Relevant Files}
+# This files should be located in the same place as the wrfout_d0* data
+print(getwd())
+uvf = "./uvmet.d03.nc"
+wf = "./w.d03.nc"
+thetaf = "./t.d03.nc"
+znuf = "./znu.d03.nc"
+znwf = "./znw.d03.nc"
+qf = "./qvapor.d03.nc"
+nc.dt = list.files(pattern = "wrfout") %>% str_sub(12, -1L) %>% as.POSIXct(format = "%Y-%m-%d_%H_%M_%S", tz = "UTC")
+initialtz = "UTC"
+```
+
+# WRF Variables: The City College of New York
+
+```{r City College Variables}
+wrfccny = list()
+tmpwrfthermo = wrfscalar_hw2018(thetaf, qf, znuf, CCNY, initialtz, ccnymwrheights, nc.dt)
+tmpwrfwinds =  wrfwinds_hw2018b(uvf, wf, znuf, znwf, CCNY, initialtz, ccnywlheights, nc.dt)
+wrfccny$th =   tmpwrfthermo$th
+wrfccny$qmix = tmpwrfthermo$qmix
+wrfccny$uu =   tmpwrfwinds$uu
+wrfccny$vv =   tmpwrfwinds$vv
+wrfccny$ww =   tmpwrfwinds$ww
+wrfccny$wspd = tmpwrfwinds$wspd
+wrfccny$wdir = tmpwrfwinds$wdir
+rm(tmpwrfthermo, tmpwrfwinds)
+
+# Save the location variable
+save(wrfccny, file = "wrf_ccny.data")
+
+```
+
+# WRF Variables: The Bronx
+
+```{r Bronx Variables}
+# The location coordinates can be found in `wrf_functions`.
+# The heights for the MWR at each location can be found there as well.
+# Varaibles to compare against the microwave radiometer
+wrfbx = list()
+tmpwrfthermo = wrfscalar_hw2018(thetaf, qf, znuf, BRONX, initialtz, bronmwrheights, nc.dt)
+tmpwrfwinds =  wrfwinds_hw2018b(uvf, wf, znuf, znwf, BRONX, initialtz, nymesolidarhts_bronx, nc.dt)
+wrfbx$th =   tmpwrfthermo$th
+wrfbx$qmix = tmpwrfthermo$qmix
+wrfbx$uu =   tmpwrfwinds$uu
+wrfbx$vv =   tmpwrfwinds$vv
+wrfbx$ww =   tmpwrfwinds$ww
+wrfbx$wspd = tmpwrfwinds$wspd
+wrfbx$wdir = tmpwrfwinds$wdir
+rm(tmpwrfthermo, tmpwrfwinds)
+
+# Save the location variable
+save(wrfbx, file = "wrf_bronx.data")
+```
+
+# WRF Variables: Queens
+
+```{r Queens Variables}
+wrfqu = list()
+tmpwrfthermo = wrfscalar_hw2018(thetaf, qf, znuf, QUEENS, initialtz, queemwrheights, nc.dt)
+tmpwrfwinds =  wrfwinds_hw2018b(uvf, wf, znuf, znwf, QUEENS, initialtz, nymesolidarhts_queens, nc.dt)
+wrfqu$th =   tmpwrfthermo$th
+wrfqu$qmix = tmpwrfthermo$qmix
+wrfqu$uu =   tmpwrfwinds$uu
+wrfqu$vv =   tmpwrfwinds$vv
+wrfqu$ww =   tmpwrfwinds$ww
+wrfqu$wspd = tmpwrfwinds$wspd
+wrfqu$wdir = tmpwrfwinds$wdir
+rm(tmpwrfthermo, tmpwrfwinds)
+
+# Save the location variable
+save(wrfqu, file = "wrf_queens.data")
+```
+
+# WRF Variables: Staten Island
+
+```{r Staten Island Variables}
+wrfsi = list()
+tmpwrfthermo = wrfscalar_hw2018(thetaf, qf, znuf, STATENISLAND, initialtz, stismwrheights, nc.dt)
+tmpwrfwinds =  wrfwinds_hw2018b(uvf, wf, znuf, znwf, STATENISLAND, initialtz, nymesolidarhts_statenisland, nc.dt)
+wrfsi$th =   tmpwrfthermo$th
+wrfsi$qmix = tmpwrfthermo$qmix
+wrfsi$uu =   tmpwrfwinds$uu
+wrfsi$vv =   tmpwrfwinds$vv
+wrfsi$ww =   tmpwrfwinds$ww
+wrfsi$wspd = tmpwrfwinds$wspd
+wrfsi$wdir = tmpwrfwinds$wdir
+rm(tmpwrfthermo, tmpwrfwinds)
+
+# Save the location variable
+save(wrfsi, file = "wrf_statenisland.data")
+```
